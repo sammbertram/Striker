@@ -1,0 +1,266 @@
+beacon_command_register("wmips", "[*] uses wmi and powershell to list processes",
+	"Synopsis: wmips [target] [DOMAIN\\user] [password]\n\n" .
+	"Uses PowerPick to run Get-WMIObject Win32_Process to list processes on a remote system. If creds are supplied, it will run as the user supplied.\n\n" .
+	"[target] IP address of hostname of the target system.");
+alias wmips {
+    local('$beacon $target $user $password $domain $username');
+
+    $beacon = $1;
+    $target = $2;
+    $user = $3;
+    $password = $4;
+
+    ($domain, $username) = split("\\\\", $user);
+
+    # if username is null, it means that only the target user was supplied
+    # in the user field. so have to juggle it.
+    if($username eq $null) {
+        $username = $domain;
+        $domain = $target;
+    }
+
+    if($target eq $null) {
+        $target = ".";
+    }
+
+    println("beacon:$beacon target:$target user:$user password:$password domain:$domain username:$username");
+
+    $command_base = "Get-WMIObject Win32_Process -computername \"$target\"";
+
+    # generate powershell credentials
+    if($password eq $null) {
+        $command  = $command_base;
+        $command .= "| Select-Object ProcessID,Name,path,@{n='Owner';e={\$_.GetOwner().User}},commandline | fl";
+    }
+    else {
+        $command  = "\$Password = ConvertTo-SecureString \"$password\" -asplaintext -force; \$Credential = New-Object -Typename System.Management.Automation.PSCredential -ArgumentList \"$domain\\$username\",\$Password;";
+        $command .= "$command_base -Credential \$Credential";
+        $command .= "| Select-Object ProcessID,Name,path,@{n='Owner';e={\$_.GetOwner().User}},commandline | fl";
+    }
+
+	binput($beacon,"powerpick $command");
+    bpowerpick($beacon,"$command");
+}
+
+beacon_command_register("wmiuptime", "[*] uses wmi and powershell to show uptime",
+	"Synopsis: wmiuptime [target] [DOMAIN\\user] [password]\n\n" .
+	"Uses PowerPick to run Get-WMIObject Win32_OperatingSystem to show uptime. If creds are supplied, it will run as the user supplied.\n\n" .
+	"[target] IP address of hostname of the target system.");
+alias wmiuptime {
+    local('$beacon $target $user $password $domain $username');
+
+    $beacon = $1;
+    $target = $2;
+    $user = $3;
+    $password = $4;
+
+    ($domain, $username) = split("\\\\", $user);
+
+    # if username is null, it means that only the target user was supplied
+    # in the user field. so have to juggle it.
+    if($username eq $null) {
+        $username = $domain;
+        $domain = $target;
+    }
+
+    if($target eq $null) {
+        $target = ".";
+    }
+
+    println("beacon:$beacon target:$target user:$user password:$password domain:$domain username:$username");
+
+    $command_base = "Get-WmiObject Win32_OperatingSystem -computername \"$target\"";
+
+    # generate powershell credentials
+    if($password eq $null) {
+        $command  = $command_base;
+        $command .= "| select csname, @{LABEL='LastBootUpTime' ;EXPRESSION={\$_.ConverttoDateTime(\$_.lastbootuptime)}}";
+    }
+    else {
+        $command  = "\$Password = ConvertTo-SecureString \"$password\" -asplaintext -force; \$Credential = New-Object -Typename System.Management.Automation.PSCredential -ArgumentList \"$domain\\$username\",\$Password;";
+        $command .= "$command_base -Credential \$Credential";
+        $command .= "| select csname, @{LABEL='LastBootUpTime' ;EXPRESSION={\$_.ConverttoDateTime(\$_.lastbootuptime)}}";
+    }
+
+	binput($beacon,"powerpick $command");
+    bpowerpick($beacon,"$command");
+}
+
+
+beacon_command_register("wmils", "[*] uses wmi and powerpick to list files",
+	"Synopsis: wmils [target] [path] [DOMAIN\\user] [password]\n\n" .
+	"Uses PowerPick to run Invoke-WMI and list processes on a remote system. If creds are supplied, it will run as the user supplied.\n\n" .
+	"[target] IP address of hostname of the target system.");
+alias wmils {
+
+    $beacon = $1;
+    $target = $2;
+    $location = $3;
+    $user = $4;
+    $password = $5;
+
+    ($domain, $username) = split("\\\\", $user);
+
+    # if username is null, it means that only the target user was supplied
+    # in the user field. so have to juggle it.
+    if($username eq $null) {
+        $username = $domain;
+        $domain = $target;
+    }
+
+    ($drive, $path) = split(":",$location);
+    println($drive);
+    if($drive is $null) {
+        $drive = "C";
+    }
+
+    #println("$drive $path");
+    if($target is $null) {
+        $target = ".";
+    }
+
+    # -Filter $filter
+    $path_1 = "$path\\";
+    $path_2 = strrep("$path_1", "\\", "\\\\");
+    $path_exp = strrep("$path_2", "\\\\\\", "\\");
+    $command_base = "Get-WmiObject -Class Win32_Directory -ComputerName \"$target\" -Filter \"Drive=\'$drive".":"."\' and Path=\'$path_exp\'\"";
+
+    # generate powershell credentials
+    if($password eq $null) {
+        $command  = $command_base;
+        $command .= "| select-object name | ft";
+    }
+    else {
+        $command  = "\$Password = ConvertTo-SecureString \"$password\" -asplaintext -force; \$Credential = New-Object -Typename System.Management.Automation.PSCredential -ArgumentList \"$username\",\$Password;";
+        $command .= "$command_base -Credential \$Credential";
+        $command .= "| select-object name | ft";
+    }
+
+	binput($beacon,"powerpick $command");
+    bpowerpick($beacon,"$command");
+}
+
+beacon_command_register("wmicomputer", "[*] uses wmi and powerpick to get computer info",
+	"Synopsis: wmicomputer [target] [DOMAIN\\user] [password]\n\n" .
+	"Uses PowerPick to run Invoke-WMI and list processes on a remote system. If creds are supplied, it will run as the user supplied.\n\n" .
+	"[target] IP address of hostname of the target system.");
+alias wmicomputer {
+
+    $beacon = $1;
+    $target = $2;
+    $user = $3;
+    $password = $4;
+
+    ($domain, $username) = split("\\\\", $user);
+
+    # if username is null, it means that only the target user was supplied
+    # in the user field. so have to juggle it.
+    if($username eq $null) {
+        $username = $domain;
+        $domain = $target;
+    }
+
+    if($target is $null) {
+        $target = ".";
+    }
+
+    $command_base = "Get-WmiObject -Class win32_operatingsystem -ComputerName \"$target\"";
+
+    # generate powershell credentials
+    if($password eq $null) {
+        $command  = $command_base;
+        $command .= " | fl";
+    }
+    else {
+        $command  = "\$Password = ConvertTo-SecureString \"$password\" -asplaintext -force; \$Credential = New-Object -Typename System.Management.Automation.PSCredential -ArgumentList \"$username\",\$Password;";
+        $command .= "$command_base -Credential \$Credential";
+        $command .= " | fl";
+    }
+
+	binput($beacon,"powerpick $command");
+    bpowerpick($beacon,"$command");
+}
+
+beacon_command_register("wmishare", "[*] uses wmi and powerpick to list shares on a system",
+	"Synopsis: wmishare [target] [DOMAIN\\user] [password]\n\n" .
+	"Uses PowerPick to run Get-WMIObject Win32_Share to list shares on a system. If creds are supplied, it will run as the user supplied.\n\n" .
+	"[target] IP address of hostname of the target system.");
+alias wmishare {
+    local('$beacon $target $user $password $domain $username');
+
+    $beacon = $1;
+    $target = $2;
+    $user = $3;
+    $password = $4;
+
+    ($domain, $username) = split("\\\\", $user);
+
+    # if username is null, it means that only the target user was supplied
+    # in the user field. so have to juggle it.
+    if($username eq $null) {
+        $username = $domain;
+        $domain = $target;
+    }
+
+    if($target is $null) {
+        $target = ".";
+    }
+
+    $command_base = "Get-WMIObject Win32_Share -computername \"$target\"";
+
+    # generate powershell credentials
+    if($password eq $null) {
+        $command  = $command_base;
+        $command .= "| ft";
+    }
+    else {
+        $command  = "\$Password = ConvertTo-SecureString \"$password\" -asplaintext -force; \$Credential = New-Object -Typename System.Management.Automation.PSCredential -ArgumentList \"$username\",\$Password;";
+        $command .= "$command_base -Credential \$Credential";
+        $command .= "| ft";
+    }
+
+	binput($beacon,"powerpick $command");
+    bpowerpick($beacon,"$command");
+}
+
+beacon_command_register("wmiclass", "[*] uses wmi and powershell to run a wmi class",
+	"Synopsis: wmiclass [class] [target] [DOMAIN\\user] [password]\n\n" .
+	"Uses PowerPick to run Get-WMIObject with generic class. If creds are supplied, it will run as the user supplied.\n\n" .
+	"[target] IP address of hostname of the target system.");
+alias wmiclass {
+
+    $beacon = $1;
+    $class = $2;
+    $target = $3;
+    $user = $4;
+    $password = $5;
+
+    ($domain, $username) = split("\\\\", $user);
+
+    # if username is null, it means that only the target user was supplied
+    # in the user field. so have to juggle it.
+    if($username eq $null) {
+        $username = $domain;
+        $domain = $target;
+    }
+
+    if($target is $null) {
+        $target = ".";
+    }
+
+    $command_base = "Get-WMIObject $class -computername \"$target\"";
+
+    # generate powershell credentials
+    if($password eq $null) {
+        $command  = $command_base;
+        $command .= "| ft";
+    }
+    else {
+        $command  = "\$Password = ConvertTo-SecureString \"$password\" -asplaintext -force; \$Credential = New-Object -Typename System.Management.Automation.PSCredential -ArgumentList \"$username\",\$Password;";
+        $command .= "$command_base -Credential \$Credential";
+        $command .= "| ft";
+    }
+
+	binput($beacon,"powerpick $command");
+    bpowerpick($beacon,"$command");
+}
