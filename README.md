@@ -1,0 +1,2 @@
+# Striker
+Cobalt Strike scripts
